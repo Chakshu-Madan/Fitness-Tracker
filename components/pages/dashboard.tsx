@@ -5,9 +5,18 @@ import { createBrowserClient } from '@supabase/ssr';
 import confetti from 'canvas-confetti';
 import { Toaster, toast } from 'sonner';
 
+interface Workout {
+  id: string;
+  user_id: string;
+  type: string;
+  duration_minutes: number;
+  calories: number;
+  distance: number;
+}
+
 export default function Dashboard() {
   const supabase = createBrowserClient();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [showLog, setShowLog] = useState(false);
   const [type, setType] = useState('Run');
   const [minutes, setMinutes] = useState('');
@@ -19,49 +28,51 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-      if (user) fetchStats(user.id);
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      if (data.user) fetchStats(data.user.id);
     });
-  }, []);
+  }, [supabase]);
 
-  const fetchStats = async (userId) => {
+  const fetchStats = async (userId: string) => {
     const { data, count } = await supabase
       .from('workouts')
       .select('*', { count: 'exact' })
       .eq('user_id', userId);
 
-    const totalCalories = data?.reduce((sum, w) => sum + (w.calories || 0), 0) || 0;
-    const totalDistance = data?.reduce((sum, w) => sum + (w.distance || 0), 0) || 0;
+    const totalCalories = data?.reduce((sum, w: Workout) => sum + (w.calories || 0), 0) || 0;
+    const totalDistance = data?.reduce((sum, w: Workout) => sum + (w.distance || 0), 0) || 0;
 
     setStats({
       totalWorkouts: count || 0,
-      streak: 7, // Calculate real streak later
+      streak: 7,
       distance: parseFloat(totalDistance.toFixed(1)),
       calories: totalCalories
     });
   };
 
   const handleLog = async () => {
-    const duration = parseInt(minutes);
+    if (!user) return;
+    const duration = parseInt(minutes) || 0;
     const calories = Math.round(duration * 10);
     const distance = type === 'Run' ? duration * 0.1 : 0;
 
     await supabase.from('workouts').insert({
-      user_id: user?.id,
+      user_id: user.id,
       type,
       duration_minutes: duration,
       calories,
       distance
     });
 
-    toast.success('Workout logged! Keep going!');
+    toast.success('Workout logged!');
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     setShowLog(false);
     setMinutes('');
-    if (user) fetchStats(user.id);
+    fetchStats(user.id);
   };
 
+  // Keep your beautiful JSX below...
   // Keep the rest of your dashboard JSX (cards, modal, etc.) EXACTLY as is
   return (
     <>
