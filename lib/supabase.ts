@@ -17,8 +17,8 @@ export const createClient = () => {
             cookiesToSet.forEach(({ name, value, options }) => {
               cookieStore.set(name, value, options);
             });
-          } catch (error) {
-            // Ignore if called from server component
+          } catch {
+            // Ignore
           }
         },
       },
