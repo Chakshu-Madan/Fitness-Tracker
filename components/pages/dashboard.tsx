@@ -6,7 +6,11 @@ import confetti from 'canvas-confetti';
 import { Toaster, toast } from 'sonner';
 
 export default function Dashboard() {
-  const supabase = createBrowserClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  
   const [user, setUser] = useState<any>(null);
   const [showLog, setShowLog] = useState(false);
   const [type, setType] = useState('Run');
