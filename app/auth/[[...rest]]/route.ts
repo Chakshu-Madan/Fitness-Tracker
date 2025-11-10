@@ -17,18 +17,12 @@ export async function GET(request: Request) {
           set: (name, value, options) => {
             try {
               cookies().set(name, value, options);
-            } catch {
-              // The `set` method was called from a Server Component.
-              // This can be ignored if you have middleware refreshing
-              // user sessions.
-            }
+            } catch {}
           },
           remove: (name, options) => {
             try {
               cookies().delete(name, options);
-            } catch {
-              // Ignore
-            }
+            } catch {}
           },
         },
       }
@@ -37,6 +31,6 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  // Redirect back to home page
-  return NextResponse.redirect(requestUrl.origin);
+  // Redirect to home
+  return NextResponse.redirect(new URL('/', requestUrl));
 }
