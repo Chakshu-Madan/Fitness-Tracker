@@ -14,16 +14,35 @@ export default function Auth() {
   const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    // Timeout to prevent infinite loading
+    const timer = setTimeout(() => {
+      console.log('Auth load timeout - showing button');
+      setLoading(false);
+    }, 3000); // 3s max wait
+
+    // Use getUser() instead of getSession() - faster & less hanging
+    supabase.auth.getUser().then(({ data: { user }, error }) => {
+      clearTimeout(timer);
+      console.log('getUser result:', { user: !!user, error });
+      if (user) {
         router.push('/dashboard');
+      } else {
+        setLoading(false);
       }
+      if (error) setError(error.message);
+    }).catch(err => {
+      clearTimeout(timer);
+      console.error('getUser error:', err);
+      setError('Auth check failed: ' + err.message);
       setLoading(false);
     });
+
+    return () => clearTimeout(timer);
   }, [router]);
 
   const handleGoogleSignIn = async () => {
     setError(null);
+    console.log('Starting Google sign-in...');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -31,10 +50,22 @@ export default function Auth() {
       },
     });
 
-    if (error) setError(error.message);
+    if (error) {
+      console.error('Sign-in error:', error);
+      setError(error.message);
+    }
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-600 to-blue-700 text-white">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-600 to-blue-700 text-white p-8">
+        <div className="text-center">
+          <p>Loading auth...</p>
+          <p className="text-sm opacity-70 mt-2">Check console for logs (F12)</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-700 flex items-center justify-center p-4">
@@ -42,11 +73,16 @@ export default function Auth() {
         <h1 className="text-4xl font-bold text-white mb-4">AthleteHub</h1>
         <p className="text-purple-200 mb-8">Track. Train. Triumph.</p>
         
-        {error && <div className="bg-red-500/20 border border-red-500 text-red-200 p-3 rounded-lg mb-4">{error}</div>}
+        {error && (
+          <div className="bg-red-500/20 border border-red-500 text-red-200 p-3 rounded-lg mb-4">
+            {error}
+          </div>
+        )}
         
         <button
           onClick={handleGoogleSignIn}
-          className="w-full bg-white text-purple-600 font-semibold py-3 px-6 rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-white text-purple-600 font-semibold py-3 px-6 rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          disabled={loading}
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
