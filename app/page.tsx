@@ -14,7 +14,7 @@ export default function Dashboard() {
   const [weight, setWeight] = useState(0);
   const [error, setError] = useState(null);
 
-  // SAFE: Check env vars before creating client
+  // SAFE: Check env vars
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   
@@ -23,8 +23,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-center min-h-screen bg-red-600 text-white">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Env Vars Missing</h1>
-          <p>Supabase URL or Key not loaded. Check Vercel settings.</p>
-          <a href="https://vercel.com/dashboard" className="mt-4 inline-block bg-white text-red-600 px-4 py-2 rounded">Fix in Vercel</a>
+          <p>Check Vercel settings.</p>
         </div>
       </div>
     );
@@ -33,22 +32,34 @@ export default function Dashboard() {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data, error }) => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data, error }) => {
       if (error) {
+        console.log('Session error:', error);
         setError('Auth failed: ' + error.message);
         setLoading(false);
         return;
       }
-      if (data.user) {
-        setUser(data.user);
-        fetchWorkouts(data.user.id);
+      if (data.session?.user) {
+        setUser(data.session.user);
+        fetchWorkouts(data.session.user.id);
       } else {
-        window.location.href = '/'; // Redirect to login
+        // No session - redirect to login
+        window.location.href = '/';
       }
-    }).catch(err => {
-      setError('Load error: ' + err.message);
-      setLoading(false);
     });
+
+    // Listen for auth changes (e.g., after login redirect)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user);
+        fetchWorkouts(session.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        window.location.href = '/';
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const fetchWorkouts = async (userId) => {
@@ -61,10 +72,11 @@ export default function Dashboard() {
       
       if (error) throw error;
       setWorkouts(data || []);
+      setLoading(false);
     } catch (err) {
       setError('Fetch failed: ' + err.message);
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const addWorkout = async (e) => {
@@ -86,6 +98,7 @@ export default function Dashboard() {
       if (error) throw error;
       setExercise(''); setSets(0); setReps(0); setWeight(0);
       setShowForm(false);
+      setError(null);
       fetchWorkouts(user.id);
     } catch (err) {
       setError('Save failed: ' + err.message);
@@ -93,25 +106,29 @@ export default function Dashboard() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen bg-purple-600 text-white">Loading your workouts...</div>;
+    return <div className="flex items-center justify-center min-h-screen bg-purple-600 text-white p-8">Loading your workouts...</div>;
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-red-600 text-white">
-        <div className="text-center">
+      <div className="flex items-center justify-center min-h-screen bg-red-600 text-white p-8">
+        <div className="text-center max-w-md">
           <h1 className="text-2xl font-bold mb-4">Error</h1>
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()} className="mt-4 bg-white text-red-600 px-4 py-2 rounded">
+          <p className="mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-white text-red-600 px-6 py-2 rounded font-semibold hover:bg-gray-100"
+          >
             Retry
           </button>
+          <p className="mt-4 text-sm opacity-80">Or <a href="/" className="underline">back to login</a></p>
         </div>
       </div>
     );
   }
 
   if (!user) {
-    return <div className="flex items-center justify-center min-h-screen bg-purple-600 text-white">Redirecting to login...</div>;
+    return <div className="flex items-center justify-center min-h-screen bg-purple-600 text-white p-8">No session — <a href="/" className="underline">login again</a></div>;
   }
 
   const totalWorkouts = workouts.length;
@@ -121,7 +138,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-700 p-6 text-white">
-      <h1 className="text-3xl font-bold mb-2">Welcome Back!</h1>
+      <h1 className="text-3xl font-bold mb-2">Welcome Back, {user.email?.split('@')[0]}!</h1>
       <p className="mb-8">You're on a {streak}-day streak!</p>
 
       {/* Stats Cards */}
@@ -149,17 +166,17 @@ export default function Dashboard() {
       </div>
 
       {/* Workout List */}
-      <div className="space-y-3 mb-8">
+      <div className="space-y-3 mb-8 max-h-96 overflow-y-auto">
         {workouts.length === 0 ? (
-          <p className="text-center text-purple-200">No workouts yet. Add one below!</p>
+          <p className="text-center text-purple-200 py-8">No workouts yet. Tap + to start your streak!</p>
         ) : (
           workouts.map((w) => (
             <div key={w.id} className="bg-white/20 rounded-xl p-4">
-              <h3 className="font-semibold">{w.exercise}</h3>
+              <h3 className="font-semibold text-lg">{w.exercise}</h3>
               <p className="text-sm opacity-80">
                 {w.sets} sets × {w.reps} reps @ {w.weight || 0}kg
               </p>
-              <p className="text-xs opacity-60">
+              <p className="text-xs opacity-60 mt-1">
                 {new Date(w.created_at).toLocaleDateString()}
               </p>
             </div>
@@ -170,21 +187,21 @@ export default function Dashboard() {
       {/* Add Workout Button */}
       <button
         onClick={() => setShowForm(!showForm)}
-        className="fixed bottom-8 right-8 bg-white text-purple-600 rounded-full p-4 shadow-lg hover:bg-purple-100 transition"
+        className="fixed bottom-8 right-8 bg-white text-purple-600 rounded-full p-4 shadow-lg hover:bg-purple-100 transition-all duration-200 hover:scale-110"
       >
         +
       </button>
 
       {/* Add Form */}
       {showForm && (
-        <form onSubmit={addWorkout} className="fixed bottom-20 right-6 bg-white/90 text-purple-600 p-6 rounded-2xl shadow-lg max-w-sm w-full">
-          <h3 className="font-bold mb-2">Log Workout</h3>
+        <form onSubmit={addWorkout} className="fixed bottom-20 right-6 bg-white/95 text-purple-600 p-6 rounded-2xl shadow-2xl max-w-sm w-full border backdrop-blur-sm">
+          <h3 className="font-bold mb-3 text-lg">Log New Workout</h3>
           <input
             type="text"
             placeholder="Exercise (e.g., Push-ups)"
             value={exercise}
             onChange={(e) => setExercise(e.target.value)}
-            className="w-full p-2 border rounded mb-2"
+            className="w-full p-3 border border-purple-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
             required
           />
           <input
@@ -192,7 +209,7 @@ export default function Dashboard() {
             placeholder="Sets"
             value={sets}
             onChange={(e) => setSets(Number(e.target.value))}
-            className="w-full p-2 border rounded mb-2"
+            className="w-full p-3 border border-purple-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
             min="1"
             required
           />
@@ -201,7 +218,7 @@ export default function Dashboard() {
             placeholder="Reps"
             value={reps}
             onChange={(e) => setReps(Number(e.target.value))}
-            className="w-full p-2 border rounded mb-2"
+            className="w-full p-3 border border-purple-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
             min="1"
             required
           />
@@ -210,19 +227,19 @@ export default function Dashboard() {
             placeholder="Weight (kg)"
             value={weight}
             onChange={(e) => setWeight(Number(e.target.value))}
-            className="w-full p-2 border rounded mb-2"
+            className="w-full p-3 border border-purple-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
             min="0"
             step="0.5"
           />
-          <div className="flex gap-2">
-            <button type="submit" className="flex-1 bg-purple-600 text-white p-2 rounded">
-              Save
+          <div className="flex gap-3">
+            <button type="submit" className="flex-1 bg-purple-600 text-white p-3 rounded-lg font-semibold hover:bg-purple-700">
+              Save Workout
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="flex-1 bg-gray-300 p-2 rounded">
+            <button type="button" onClick={() => { setShowForm(false); setError(null); }} className="flex-1 bg-gray-300 p-3 rounded-lg font-semibold hover:bg-gray-400">
               Cancel
             </button>
           </div>
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
         </form>
       )}
     </div>
