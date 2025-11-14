@@ -22,12 +22,27 @@ export default function Dashboard() {
     calories: 0
   });
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-      if (data.user) fetchStats(data.user.id);
-    });
-  }, [supabase]);
+  // In dashboard.tsx — update the useEffect
+useEffect(() => {
+  const fetchWorkouts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('workouts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      setWorkouts(data || []);
+    } catch (error) {
+      console.error('Error fetching workouts:', error);
+      toast.error('Failed to load workouts. Check console (F12).');
+      setWorkouts([]); // Show empty list instead of loading
+    }
+  };
+
+  fetchWorkouts();
+}, [supabase]);
 
   const fetchStats = async (userId: string) => {
     const { data, count } = await supabase
