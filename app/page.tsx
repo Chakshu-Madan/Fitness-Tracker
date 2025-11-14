@@ -1,17 +1,35 @@
-import { createClient } from '@supabase/supabase-js';
-import { redirect } from 'next/navigation';
+// app/page.tsx
+'use client';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase';
+import Auth from '@/components/auth';
+import Dashboard from '@/components/pages/dashboard';
 
-export default async function Home() {
-  const { data: { session } } = await supabase.auth.getSession();
+export default function Home() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  if (session) {
-    redirect('/dashboard');
-  } else {
-    redirect('/auth');
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
   }
+
+  return session ? <Dashboard /> : <Auth />;
 }
