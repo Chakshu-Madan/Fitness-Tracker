@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '/lib/supabase';
 import confetti from 'canvas-confetti';
 import { Toaster, toast } from 'sonner';
 
@@ -23,26 +24,39 @@ export default function Dashboard() {
   });
 
   // In dashboard.tsx — update the useEffect
+// Assume you have: const [workouts, setWorkouts] = useState<Workout[]>([]);
+// const [loading, setLoading] = useState(true);  // Add if missing
+// const [user, setUser] = useState<any>(null);  // From auth hook/context
+
 useEffect(() => {
   const fetchWorkouts = async () => {
+    if (!user) {  // Early exit if no user
+      setLoading(false);
+      return;
+    }
+    setLoading(true);  // Start loading
     try {
       const { data, error } = await supabase
         .from('workouts')
         .select('*')
+        .eq('user_id', user.id)  // Filter by user to avoid RLS issues
         .order('created_at', { ascending: false });
-      
       if (error) throw error;
-      
       setWorkouts(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching workouts:', error);
-      toast.error('Failed to load workouts. Check console (F12).');
-      setWorkouts([]); // Show empty list instead of loading
+      toast.error(`Failed to load workouts: ${error.message || '(Unknown error)'}`);
+      setWorkouts([]);  // Empty list on error
+    } finally {
+      setLoading(false);  // ALWAYS reset loading here
     }
   };
-
   fetchWorkouts();
-}, [supabase]);
+}, [user]);  // Depend on user to refetch on login
+
+if (loading) return <div>Loading workouts...</div>;  // Your purple screen
+if (workouts.length === 0) return <div>No workouts yet. <button onClick={handleAddWorkout}>Add one!</button></div>;
+// Else: map over workouts
 
   const fetchStats = async (userId: string) => {
     const { data, count } = await supabase
