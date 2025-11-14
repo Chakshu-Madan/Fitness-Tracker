@@ -1,180 +1,138 @@
-'use client';
+// components/pages/dashboard.tsx
+'use client';                     // <-- important for client-side hooks
 
-import { useState, useEffect } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
-import { supabase } from '/lib/supabase';
-import confetti from 'canvas-confetti';
-import { Toaster, toast } from 'sonner';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
+import { useSession } from '@supabase/auth-helpers-react';
+import { toast, Toaster } from 'sonner';   // or your toast library
+
+interface Workout {
+  id: string;
+  created_at: string;
+  // add other fields you store
+}
 
 export default function Dashboard() {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-  
-  const [user, setUser] = useState<any>(null);
-  const [showLog, setShowLog] = useState(false);
-  const [type, setType] = useState('Run');
-  const [minutes, setMinutes] = useState('');
+  // ----- AUTH -----
+  const { data: { session } } = useSession();
+  const user = session?.user;
+
+  // ----- UI STATE -----
+  const [displayName, setDisplayName] = useState('Athlete');
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalWorkouts: 0,
-    streak: 7,
     distance: 0,
-    calories: 0
+    calories: 0,
   });
 
-  // In dashboard.tsx — update the useEffect
-// Assume you have: const [workouts, setWorkouts] = useState<Workout[]>([]);
-// const [loading, setLoading] = useState(true);  // Add if missing
-// const [user, setUser] = useState<any>(null);  // From auth hook/context
+  // ----- FETCH USER NAME -----
+  useEffect(() => {
+    if (!user) {
+      setDisplayName('Athlete');
+      return;
+    }
 
-useEffect(() => {
-  const fetchWorkouts = async () => {
-    if (!user) {  // Early exit if no user
+    // 1. Try metadata (set on signup)
+    const metaName = user.user_metadata?.full_name;
+    if (metaName) {
+      setDisplayName(metaName);
+      return;
+    }
+
+    // 2. Fallback to email prefix
+    const emailPart = user.email?.split('@')[0];
+    setDisplayName(emailPart ?? 'Athlete');
+  }, [user]);
+
+  // ----- FETCH WORKOUTS -----
+  useEffect(() => {
+    if (!user) {
       setLoading(false);
       return;
     }
-    setLoading(true);  // Start loading
-    try {
-      const { data, error } = await supabase
-        .from('workouts')
-        .select('*')
-        .eq('user_id', user.id)  // Filter by user to avoid RLS issues
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setWorkouts(data || []);
-    } catch (error: any) {
-      console.error('Error fetching workouts:', error);
-      toast.error(`Failed to load workouts: ${error.message || '(Unknown error)'}`);
-      setWorkouts([]);  // Empty list on error
-    } finally {
-      setLoading(false);  // ALWAYS reset loading here
-    }
-  };
-  fetchWorkouts();
-}, [user]);  // Depend on user to refetch on login
 
-if (loading) return <div>Loading workouts...</div>;  // Your purple screen
-if (workouts.length === 0) return <div>No workouts yet. <button onClick={handleAddWorkout}>Add one!</button></div>;
-// Else: map over workouts
+    const fetchWorkouts = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('workouts')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
 
-  const fetchStats = async (userId: string) => {
-    const { data, count } = await supabase
-      .from('workouts')
-      .select('*', { count: 'exact' })
-      .eq('user_id', userId);
+        if (error) throw error;
 
-    const totalCalories = data?.reduce((sum, w: any) => sum + (w.calories || 0), 0) || 0;
-    const totalDistance = data?.reduce((sum, w: any) => sum + (w.distance || 0), 0) || 0;
+        setWorkouts(data ?? []);
+        setStats(prev => ({
+          ...prev,
+          totalWorkouts: data?.length ?? 0,
+        }));
+      } catch (err: any) {
+        console.error(err);
+        toast.error(`Failed to load workouts: ${err.message}`);
+        setWorkouts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    setStats({
-      totalWorkouts: count || 0,
-      streak: 7,
-      distance: parseFloat(totalDistance.toFixed(1)),
-      calories: totalCalories
-    });
-  };
+    fetchWorkouts();
+  }, [user]);
 
-  const handleLog = async () => {
-    if (!user || !minutes) return;
-    const duration = parseInt(minutes);
-    const calories = Math.round(duration * 10);
-    const distance = type === 'Run' ? duration * 0.1 : 0;
-
-    await supabase.from('workouts').insert({
-      user_id: user.id,
-      type,
-      duration_minutes: duration,
-      calories,
-      distance
-    });
-
-    toast.success('Workout logged!');
-    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-    setShowLog(false);
-    setMinutes('');
-    fetchStats(user.id);
-  };
+  // ----- RENDER -----
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-purple-900 text-white">
+        Loading workouts...
+      </div>
+    );
+  }
 
   return (
-    <>
-      <Toaster richColors position="top-center" />
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 text-white p-6">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2">Welcome Back!</h1>
-          <p className="text-xl mb-8">You're on a {stats.streak}-day streak!</p>
+    <div className="min-h-screen bg-purple-50 p-6">
+      <Toaster />
+      <h1 className="mb-6 text-3xl font-bold text-purple-800">
+        Welcome back, <span className="underline">{displayName}</span>!
+      </h1>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 text-center border border-white/20">
-              <div className="text-4xl mb-2">Pulse</div>
-              <div className="text-3xl font-bold">{stats.totalWorkouts}</div>
-              <div className="text-sm opacity-80">Total Workouts</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 text-center border border-white/20">
-              <div className="text-4xl mb-2">Trophy</div>
-              <div className="text-3xl font-bold">{stats.streak} days</div>
-              <div className="text-sm opacity-80">Current Streak</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 text-center border border-white/20">
-              <div className="text-4xl mb-2">Target</div>
-              <div className="text-3xl font-bold">{stats.distance} km</div>
-              <div className="text-sm opacity-80">This Week</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 text-center border border-white/20">
-              <div className="text-4xl mb-2">Fire</div>
-              <div className="text-3xl font-bold">{stats.calories}</div>
-              <div className="text-sm opacity-80">Calories Burned</div>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setShowLog(true)}
-            className="fixed bottom-8 right-8 bg-white text-blue-600 w-16 h-16 rounded-full text-4xl font-bold shadow-2xl hover:scale-110 transition-all"
-          >
-            +
-          </button>
+      {/* Stats */}
+      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded bg-white p-4 shadow">
+          <p className="text-sm text-gray-600">Total Workouts</p>
+          <p className="text-2xl font-semibold">{stats.totalWorkouts}</p>
+        </div>
+        <div className="rounded bg-white p-4 shadow">
+          <p className="text-sm text-gray-600">Distance (km)</p>
+          <p className="text-2xl font-semibold">{stats.distance}</p>
+        </div>
+        <div className="rounded bg-white p-4 shadow">
+          <p className="text-sm text-gray-600">Calories</p>
+          <p className="text-2xl font-semibold">{stats.calories}</p>
         </div>
       </div>
 
-      {showLog && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white text-black p-8 rounded-3xl w-full max-w-md shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">Log Workout</h2>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full p-3 border rounded-lg mb-4 text-black text-base"
+      {/* Workout List */}
+      {workouts.length === 0 ? (
+        <p className="text-center text-gray-600">
+          No workouts yet. Add one to get started!
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {workouts.map(w => (
+            <div
+              key={w.id}
+              className="flex justify-between rounded bg-white p-4 shadow"
             >
-              <option>Run</option>
-              <option>Cycle</option>
-              <option>Swim</option>
-              <option>Yoga</option>
-              <option>Weights</option>
-            </select>
-            <input
-              type="number"
-              placeholder="Minutes"
-              value={minutes}
-              onChange={(e) => setMinutes(e.target.value)}
-              className="w-full p-3 border rounded-lg mb-6 text-black text-base"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={handleLog}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setShowLog(false)}
-                className="flex-1 bg-gray-300 py-3 rounded-lg font-bold hover:bg-gray-400 transition"
-              >
-                Cancel
-              </button>
+              <span className="font-medium">
+                {new Date(w.created_at).toLocaleDateString()}
+              </span>
+              {/* add more fields here */}
             </div>
-          </div>
+          ))}
         </div>
       )}
-    </>
+    </div>
   );
 }

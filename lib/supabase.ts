@@ -1,9 +1,13 @@
 // lib/supabase.ts
-import { createBrowserClient } from '@supabase/ssr';
+import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
 
-// ONLY FOR CLIENT-SIDE (browser)
-export const createClient = () =>
-  createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing Supabase env vars. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.'
   );
+}
+
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
