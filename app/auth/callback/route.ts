@@ -1,18 +1,35 @@
-import { createClient } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
+// app/auth/[[...rest]]/route.ts
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
 
   if (code) {
+    const supabase = createServerClient(
+      process.env.SUPABASE_URL!,  // ← SERVER VAR (no NEXT_PUBLIC_)
+      process.env.SUPABASE_ANON_KEY!,  // ← SERVER VAR (no NEXT_PUBLIC_)
+      {
+        cookies: {
+          get: (name) => cookies().get(name)?.value,
+          set: (name, value, options) => {
+            try {
+              cookies().set(name, value, options);
+            } catch {}
+          },
+          remove: (name, options) => {
+            try {
+              cookies().delete(name, options);
+            } catch {}
+          },
+        },
+      }
+    );
+
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return NextResponse.redirect(requestUrl.origin + '/dashboard');
+  return NextResponse.redirect(new URL('/', requestUrl));
 }
