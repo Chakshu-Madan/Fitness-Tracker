@@ -3,39 +3,13 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Session } from '@supabase/supabase-js';  // For Session type
+import { useSession } from '../../hooks/useSessionContext';  // Custom hook
 import { toast, Toaster } from 'sonner';
 
 interface Workout {
   id: string;
   created_at: string;
   // Add other fields like name, distance, calories if you have them
-}
-
-// Custom useSession hook (since @supabase/ssr doesn't export one)
-function useSession() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    // Listen for auth changes (login/logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  return { session, loading };
 }
 
 export default function Dashboard() {
