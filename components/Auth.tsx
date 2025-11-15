@@ -1,32 +1,29 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // Use next/navigation for App Router
-import { useSession } from 'hooks/useSessionContext'; // Adjust path as needed
+import { useRouter } from 'next/router'; // FIX: Using 'next/router' for Pages Router
+import { useSession } from 'hooks/useSessionContext'; // FIX: Corrected to 2 levels up
 
 /**
  * This component is an "Auth Guard".
- * You should wrap your protected pages (like Dashboard) with it.
+ * You wrap your protected pages (like Dashboard) with it.
  * It ensures that a user is authenticated before viewing a page.
  */
 export default function Auth({ children }: { children: React.ReactNode }) {
-    // Get the session state and, most importantly, the loading state
     const { session, loading } = useSession();
     const router = useRouter();
 
     useEffect(() => {
-        // 1. Wait until the session is fully loaded before checking
         if (loading) {
             return; // Do nothing while loading
         }
 
         if (!session) {
-            router.push('/auth'); // Or your main login page
+            router.push('/auth'); // Redirect to your login/auth page
         }
         
     }, [session, loading, router]); 
 
-   
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-purple-700 text-white text-3xl font-inter">
@@ -39,6 +36,7 @@ export default function Auth({ children }: { children: React.ReactNode }) {
         return <>{children}</>;
     }
 
+    // Show this while the redirect is in progress
     return (
          <div className="flex items-center justify-center min-h-screen bg-purple-700 text-white text-3xl font-inter">
             Redirecting to login...
