@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from '../hooks/useSessionContext'; // FIX: Corrected path to root
+import { useSession } from '../hooks/useSessionContext'; // FIX: Corrected to relative path
 import Link from 'next/link';
 
 export default function Home() {
