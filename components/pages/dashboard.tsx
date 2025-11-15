@@ -23,10 +23,6 @@ export default function Dashboard() {
     const [workouts, setWorkouts] = useState<Workout[]>([]);
     const [stats, setStats] = useState({ totalWorkouts: 0, distance: 0, calories: 0 });
 
-    // ----------------------------------------------------
-    // CRITICAL: The Loading State Check 
-    // This stops the infinite refresh/redirect loop.
-    // ----------------------------------------------------
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-purple-700 text-white text-3xl font-inter">
