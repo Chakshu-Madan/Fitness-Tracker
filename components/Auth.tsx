@@ -1,46 +1,47 @@
-import { useState } from 'react';
-import { supabase } from 'lib/supabase';  // Your client
-import { useSession } from '@supabase/auth-helpers-react';  // If using session hook
+'use client';
 
-export default function AuthForm() {
-  const [name, setName] = useState('');  // Dynamic state
-  const { data: { session } } = useSession();  // Auto-fill from session if logged in
-  const user = session?.user;
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // Use next/navigation for App Router
+import { useSession } from 'hooks/useSessionContext'; // Adjust path as needed
 
-  // Pre-fill name from user metadata (e.g., on profile edit)
-  useEffect(() => {
-    if (user?.user_metadata?.full_name) {
-      setName(user.user_metadata.full_name);
-    } else if (user?.email) {
-      setName(user.email.split('@')[0]);  // Fallback: username from email
+/**
+ * This component is an "Auth Guard".
+ * You should wrap your protected pages (like Dashboard) with it.
+ * It ensures that a user is authenticated before viewing a page.
+ */
+export default function Auth({ children }: { children: React.ReactNode }) {
+    // Get the session state and, most importantly, the loading state
+    const { session, loading } = useSession();
+    const router = useRouter();
+
+    useEffect(() => {
+        // 1. Wait until the session is fully loaded before checking
+        if (loading) {
+            return; // Do nothing while loading
+        }
+
+        if (!session) {
+            router.push('/auth'); // Or your main login page
+        }
+        
+    }, [session, loading, router]); 
+
+   
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-purple-700 text-white text-3xl font-inter">
+                Verifying session...
+            </div>
+        );
     }
-  }, [user]);
 
-  const handleSignup = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: name || 'Anonymous Athlete' }  // Store name in metadata
-      }
-    });
-    if (error) toast.error(error.message);
-    else toast.success('Signed up! Check email.');
-  };
+    if (session) {
+        return <>{children}</>;
+    }
 
-  return (
-    <form onSubmit={(e) => { e.preventDefault(); /* Call handleSignup */ }}>
-      <label htmlFor="name">Full Name (optional for personalized workouts)</label>
-      <input
-        id="name"
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder={user ? `Hi, ${user.email?.split('@')[0]}!` : 'Enter your name'}  // Dynamic placeholder
-        className="w-full p-2 border rounded"  // Your purple theme CSS
-      />
-      {/* Other fields: email, password */}
-      <button type="submit" className="bg-purple-600 text-white p-2 rounded">Sign Up</button>
-    </form>
-  );
+    return (
+         <div className="flex items-center justify-center min-h-screen bg-purple-700 text-white text-3xl font-inter">
+            Redirecting to login...
+        </div>
+    );
 }
