@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';  // Your client
+import { supabase } from 'lib/supabase';  // Your client
 import { useSession } from '@supabase/auth-helpers-react';  // If using session hook
 
 export default function AuthForm() {
