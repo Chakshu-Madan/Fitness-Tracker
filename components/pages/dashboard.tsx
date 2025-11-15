@@ -1,10 +1,10 @@
 // components/pages/dashboard.tsx
-'use client';                     // <-- important for client-side hooks
+'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useSession } from '@supabase/auth-helpers-react';
-import { toast, Toaster } from 'sonner';   // or your toast library
+import { useSession } from '@supabase/ssr';
+import { toast, Toaster } from 'sonner';
 
 interface Workout {
   id: string;
@@ -13,47 +13,31 @@ interface Workout {
 }
 
 export default function Dashboard() {
-  // ----- AUTH -----
   const { data: { session } } = useSession();
   const user = session?.user;
 
-  // ----- UI STATE -----
   const [displayName, setDisplayName] = useState('Athlete');
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalWorkouts: 0,
-    distance: 0,
-    calories: 0,
-  });
+  const [stats, setStats] = useState({ totalWorkouts: 0, distance: 0, calories: 0 });
 
-  // ----- FETCH USER NAME -----
+  // ----- NAME -----
   useEffect(() => {
     if (!user) {
       setDisplayName('Athlete');
       return;
     }
-
-    // 1. Try metadata (set on signup)
-    const metaName = user.user_metadata?.full_name;
-    if (metaName) {
-      setDisplayName(metaName);
-      return;
-    }
-
-    // 2. Fallback to email prefix
-    const emailPart = user.email?.split('@')[0];
-    setDisplayName(emailPart ?? 'Athlete');
+    const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Athlete';
+    setDisplayName(name);
   }, [user]);
 
-  // ----- FETCH WORKOUTS -----
+  // ----- WORKOUTS -----
   useEffect(() => {
     if (!user) {
       setLoading(false);
       return;
     }
-
-    const fetchWorkouts = async () => {
+    const fetch = async () => {
       setLoading(true);
       try {
         const { data, error } = await supabase
@@ -61,31 +45,22 @@ export default function Dashboard() {
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
-
         if (error) throw error;
-
         setWorkouts(data ?? []);
-        setStats(prev => ({
-          ...prev,
-          totalWorkouts: data?.length ?? 0,
-        }));
-      } catch (err: any) {
-        console.error(err);
-        toast.error(`Failed to load workouts: ${err.message}`);
-        setWorkouts([]);
+        setStats(s => ({ ...s, totalWorkouts: data?.length ?? 0 }));
+      } catch (e: any) {
+        toast.error(e.message);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchWorkouts();
+    fetch();
   }, [user]);
 
-  // ----- RENDER -----
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-purple-900 text-white">
-        Loading workouts...
+        Loading...
       </div>
     );
   }
@@ -97,7 +72,6 @@ export default function Dashboard() {
         Welcome back, <span className="underline">{displayName}</span>!
       </h1>
 
-      {/* Stats */}
       <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded bg-white p-4 shadow">
           <p className="text-sm text-gray-600">Total Workouts</p>
@@ -113,22 +87,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Workout List */}
       {workouts.length === 0 ? (
-        <p className="text-center text-gray-600">
-          No workouts yet. Add one to get started!
-        </p>
+        <p className="text-center text-gray-600">No workouts yet.</p>
       ) : (
         <div className="space-y-3">
           {workouts.map(w => (
-            <div
-              key={w.id}
-              className="flex justify-between rounded bg-white p-4 shadow"
-            >
+            <div key={w.id} className="flex justify-between rounded bg-white p-4 shadow">
               <span className="font-medium">
                 {new Date(w.created_at).toLocaleDateString()}
               </span>
-              {/* add more fields here */}
             </div>
           ))}
         </div>

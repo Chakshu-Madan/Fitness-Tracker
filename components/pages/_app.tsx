@@ -1,8 +1,8 @@
 // pages/_app.tsx
 import type { AppProps } from 'next/app';
-import { SessionContextProvider } from '@supabase/auth-helpers-react';
+import { SessionContextProvider } from '@supabase/ssr';
 import { supabase } from '../lib/supabase';
-import '../styles/globals.css';   // keep your global CSS if you have one
+import '../styles/globals.css';   // keep your CSS
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   return (
