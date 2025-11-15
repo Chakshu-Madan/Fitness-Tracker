@@ -1,35 +1,31 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from 'lib/supabase'; // FIX: Corrected path to root
+// FIX: Using relative paths that work in Vercel
+import { supabase } from '../../lib/supabase';
 import { useSession } from 'hooks/useSessionContext'; // FIX: Corrected path to root
 import { toast, Toaster } from 'sonner';
 
 interface Workout {
     id: string;
     created_at: string;
-   
+    // Add all other fields like name, distance, calories if you have them
+    // name: string;
+    // distance: number; 
+    // calories: number;
 }
 
 export default function Dashboard() {
-    // FIX 1: The 'authLoading' property doesn't exist anymore. 
-    // We now use 'loading' for the initial state check.
     const { session, loading } = useSession();
-    const user = session?.user; // Now correctly pull the user object from the session
+    const user = session?.user; 
 
-    // State for the user's name
     const [displayName, setDisplayName] = useState('Athlete');
-
-    // State for workouts
     const [workouts, setWorkouts] = useState<Workout[]>([]);
-    
-    // State for total stats (loading state is now handled by the hook's 'loading')
     const [stats, setStats] = useState({ totalWorkouts: 0, distance: 0, calories: 0 });
 
     // ----------------------------------------------------
     // CRITICAL: The Loading State Check 
-    // This stops the infinite refresh/redirect loop by displaying a loading screen 
-    // until the authentication check (in useSessionContext.tsx) is complete.
+    // This stops the infinite refresh/redirect loop.
     // ----------------------------------------------------
     if (loading) {
         return (
@@ -40,37 +36,46 @@ export default function Dashboard() {
     }
     // ----------------------------------------------------
     
-    // Set user name (from metadata or email fallback)
+    // Set user name and fetch data
     useEffect(() => {
         if (user) {
             const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Athlete';
             setDisplayName(name);
             
-            // Fetch data only after user is confirmed and loading is complete
             fetchWorkouts(user.id);
         }
-    }, [user]);
+    }, [user]); // Dependency array should only include 'user'
 
     // Function to fetch workouts (mock implementation)
     const fetchWorkouts = async (userId: string) => {
-        // Here you would implement your Supabase fetch logic:
-        // const { data, error } = await supabase.from('workouts').select('*').eq('user_id', userId);
-        
-        // For now, let's log to ensure we reached this point
         console.log(`Fetching workouts for user: ${userId}`);
         
-        // If you need the full implementation of data fetching, let me know!
-        
-        // Example of setting mock data:
-        // setWorkouts(/* your fetched data */);
-        // setStats(/* calculate totals from fetched data */);
+        // Example of real Supabase fetch (uncomment to use)
+        /*
+        const { data, error } = await supabase
+            .from('workouts') // Make sure 'workouts' is your table name
+            .select('*')
+            .eq('user_id', userId);
+
+        if (error) {
+            toast.error('Could not fetch workouts.');
+            console.error(error);
+        } else if (data) {
+            setWorkouts(data as Workout[]);
+            
+            // Calculate stats (you would adjust this)
+            const total = data.length;
+            // const totalDist = data.reduce((acc, w) => acc + (w.distance || 0), 0);
+            // const totalCal = data.reduce((acc, w) => acc + (w.calories || 0), 0);
+            // setStats({ totalWorkouts: total, distance: totalDist, calories: totalCal });
+            
+            setStats({ totalWorkouts: total, distance: 0, calories: 0 }); // Mock stats
+        }
+        */
         
         toast.success(`Welcome back, ${displayName}!`);
     };
 
-
-    // If 'loading' is false and there is NO user, the AuthGuard/Layout should redirect the user to /auth.
-    // Therefore, if we reach this point AND there is a user, we display the dashboard.
     
     return (
         <div className="p-8 bg-gray-50 min-h-screen">
@@ -89,8 +94,14 @@ export default function Dashboard() {
                     <p className="text-gray-600">No workouts recorded yet. Start logging your fitness journey!</p>
                 </div>
             ) : (
-                 // Render workout list here
-                 <p>Workouts List Placeholder...</p>
+                 <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                    {workouts.map(workout => (
+                        <div key={workout.id} className="border-b last:border-b-0 py-2">
+                            <p className="text-gray-800">Workout on {new Date(workout.created_at).toLocaleDateString()}</p>
+                            {/* Render other workout details here */}
+                        </div>
+                    ))}
+                 </div>
             )}
 
             <Toaster />
@@ -98,7 +109,7 @@ export default function Dashboard() {
     );
 }
 
-// Simple Card Component for stats (add this below the Dashboard export)
+// Simple Card Component for stats
 const StatCard = ({ title, value, unit }: { title: string, value: number, unit: string }) => (
     <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-purple-500 transition hover:shadow-xl">
         <p className="text-lg text-gray-500 font-medium">{title}</p>
