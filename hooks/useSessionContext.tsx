@@ -3,57 +3,42 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Session, User, AuthChangeEvent, Subscription } from '@supabase/supabase-js';
 
-import { supabase } from '@/lib/supabase'; // Using absolute path alias
+// Using the relative path that works for your structure
+import { supabase } from '../lib/supabase'; 
 
 interface SessionContextValue {
     session: Session | null;
     user: User | null;
-    isAuthReady: boolean; 
+    isAuthReady: boolean; // This will be true only after the listener has fired once
     loading: boolean;
 }
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
-// This component listens to Supabase auth changes and provides global session state
 export function SessionContextProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
-    const [isAuthReady, setIsAuthReady] = useState(false); // Starts as false
+    // Start as false. This is the key to fixing the loop.
+    const [isAuthReady, setIsAuthReady] = useState(false); 
 
     useEffect(() => {
-        let subscription: Subscription | null = null;
-        
-        // Use an async function to get the initial session *before* listening
-        const getInitialSession = async () => {
-            try {
-                const { data: { session: initialSession } } = await supabase.auth.getSession();
-                setSession(initialSession);
-            } catch (error) {
-                console.error("Error fetching initial Supabase session:", error);
-                setSession(null); // Ensure session is null on error
+        // This listener fires *once* on page load with the initial session,
+        // and then again every time the auth state changes.
+        // This single source of truth prevents the race condition.
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (event: AuthChangeEvent, currentSession: Session | null) => {
+                setSession(currentSession);
+                // Now we know the auth state is stable and have a definitive answer.
+                setIsAuthReady(true); 
             }
-            
-            setIsAuthReady(true);
-            
-            // 1. Listen for auth changes and set the session after initial check
-            const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
-                (event: AuthChangeEvent, currentSession: Session | null) => {
-                    setSession(currentSession);
-                    setIsAuthReady(true);
-                }
-            );
-            subscription = authSubscription;
-        };
-
-        getInitialSession();
+        );
 
         // Cleanup the listener when the component unmounts
         return () => {
-             if (subscription) {
-                 subscription.unsubscribe();
-             }
+             subscription.unsubscribe();
         };
-    }, []);
+    }, []); // Empty dependency array ensures this runs only once on mount
 
+    // The app is "loading" until the auth listener has fired at least once.
     const loading = !isAuthReady;
 
     const value = useMemo(() => ({
