@@ -3,44 +3,46 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Session, User, AuthChangeEvent, Subscription } from '@supabase/supabase-js';
 
-// FIX: Using absolute path alias, which is standard for Next.js
-import { supabase } from '@/lib/supabase'; 
+// FIX: Corrected relative path. 'hooks' and 'lib' are sibling folders.
+import { supabase } from '../lib/supabase'; 
 
 interface SessionContextValue {
     session: Session | null;
     user: User | null;
-    loading: boolean; // We will simplify to just 'loading'
+    loading: boolean; 
 }
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
 export function SessionContextProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
-    // Start in loading state
-    const [loading, setLoading] = useState(true); 
+    const [loading, setLoading] = useState(true); // Start as true
 
     useEffect(() => {
-        // 1. Fetch the initial session from storage (this is fast)
+        // 1. Fetch the initial session
         const fetchSession = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 setSession(session);
             } catch (error) {
                 console.error("Error fetching initial session:", error);
-                setSession(null);
+                setSession(null); // Ensure session is null on error
             } finally {
-                // 3. No matter what, we are "done" with the initial check.
+                // 3. Set loading to false *after* the initial check is complete
                 setLoading(false);
             }
         };
 
         fetchSession();
 
-        // 2. Then, set up a listener for any *future* changes
-        // (e.g., user signs in, signs out, or token refreshes)
+        // 2. Listen for auth state changes (login, logout, etc.)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (event: AuthChangeEvent, currentSession: Session | null) => {
                 setSession(currentSession);
+                // Note: We set loading to false *immediately* on the first fetch,
+                // this listener just handles subsequent updates.
+                // If the user logs in/out, we might be briefly out of sync,
+                // but loading is already false.
             }
         );
 
@@ -48,8 +50,9 @@ export function SessionContextProvider({ children }: { children: React.ReactNode
         return () => {
              subscription.unsubscribe();
         };
-    }, []); // Empty dependency array ensures this runs only once on mount
+    }, []); // Run this effect only once on mount
 
+    // Memoize the context value to prevent unnecessary re-renders
     const value = useMemo(() => ({
         session,
         user: session?.user ?? null,
