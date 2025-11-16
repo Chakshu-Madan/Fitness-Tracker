@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Session, User, AuthChangeEvent, Subscription } from '@supabase/supabase-js';
-import { supabase } from '../../lib/supabase'; // FIX: Correct relative path up two levels
+import { supabase } from '../lib/supabase'; // FIX: Up one level
 
 interface SessionContextValue {
     session: Session | null;
@@ -14,7 +14,7 @@ const SessionContext = createContext<SessionContextValue | undefined>(undefined)
 
 export function SessionContextProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
-    const [loading, setLoading] = useState(true); // Start as true
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchSession = async () => {
