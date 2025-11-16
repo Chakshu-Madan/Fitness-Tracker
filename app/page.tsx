@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from '@/hooks/useSessionContext'; // FIX: Use absolute path
+import { useSession } from '../hooks/useSessionContext'; // FIX: Up one level
 import Link from 'next/link';
 
 export default function Home() {
@@ -21,7 +21,6 @@ export default function Home() {
       </h1>
       
       {session ? (
-        // User IS logged in
         <div>
           <p className="text-2xl text-gray-700 mb-6">
             Welcome back, {session.user.email}!
@@ -33,7 +32,6 @@ export default function Home() {
           </Link>
         </div>
       ) : (
-        // User is NOT logged in
         <div>
           <p className="text-2xl text-gray-700 mb-6">
             Your journey to a healthier life starts here.
