@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/router'; // FIX: Using 'next/router' for Pages Router
-import { useSession } from 'hooks/useSessionContext'; // FIX: Corrected to 2 levels up
+import { useRouter } from 'next/navigation'; // This is correct
+import { useSession } from '@/hooks/useSessionContext'; // FIX: Use absolute path
 
 /**
  * This component is an "Auth Guard".
@@ -17,11 +17,9 @@ export default function Auth({ children }: { children: React.ReactNode }) {
         if (loading) {
             return; // Do nothing while loading
         }
-
         if (!session) {
             router.push('/auth'); // Redirect to your login/auth page
         }
-        
     }, [session, loading, router]); 
 
     if (loading) {
@@ -31,12 +29,9 @@ export default function Auth({ children }: { children: React.ReactNode }) {
             </div>
         );
     }
-
     if (session) {
         return <>{children}</>;
     }
-
-    // Show this while the redirect is in progress
     return (
          <div className="flex items-center justify-center min-h-screen bg-purple-700 text-white text-3xl font-inter">
             Redirecting to login...

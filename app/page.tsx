@@ -1,13 +1,11 @@
 'use client';
 
-import { useSession } from '../hooks/useSessionContext'; // FIX: Corrected to relative path
+import { useSession } from '@/hooks/useSessionContext'; // FIX: Use absolute path
 import Link from 'next/link';
 
 export default function Home() {
-  // 1. Get auth state from our hook. That's it!
   const { session, loading } = useSession();
 
-  // 2. Show a loading state until the session is checked
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-purple-700 text-white text-3xl font-inter">
@@ -16,7 +14,6 @@ export default function Home() {
     );
   }
 
-  // 3. Show different content based on if the user is logged in
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-24 bg-gray-50">
       <h1 className="text-6xl font-bold text-purple-700 mb-8">

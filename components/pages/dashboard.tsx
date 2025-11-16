@@ -1,22 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-// FIX: Using relative paths that work in Vercel
-import { supabase } from '../../lib/supabase';
-import { useSession } from 'hooks/useSessionContext'; // FIX: Corrected path to root
+import { supabase } from '@/lib/supabase'; // FIX: Use absolute path
+import { useSession } from '@/hooks/useSessionContext'; // FIX: Use absolute path
 import { toast, Toaster } from 'sonner';
 
 interface Workout {
     id: string;
     created_at: string;
-    // Add all other fields like name, distance, calories if you have them
-    // name: string;
-    // distance: number; 
-    // calories: number;
+    // Add other fields
 }
 
 export default function Dashboard() {
-    const { session, loading } = useSession();
+    const { session, loading } = useSession(); // No change needed here
     const user = session?.user; 
 
     const [displayName, setDisplayName] = useState('Athlete');
@@ -30,46 +26,20 @@ export default function Dashboard() {
             </div>
         );
     }
-    // ----------------------------------------------------
     
-    // Set user name and fetch data
     useEffect(() => {
         if (user) {
             const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Athlete';
             setDisplayName(name);
-            
-            fetchWorkouts(user.id);
+            fetchWorkouts(user.id, name); // Pass name to toast
         }
-    }, [user]); // Dependency array should only include 'user'
+    }, [user]);
 
-    // Function to fetch workouts (mock implementation)
-    const fetchWorkouts = async (userId: string) => {
-        console.log(`Fetching workouts for user: ${userId}`);
+    const fetchWorkouts = async (userId: string, name: string) => {
+        // You can add your Supabase fetch logic here
         
-        // Example of real Supabase fetch (uncomment to use)
-        /*
-        const { data, error } = await supabase
-            .from('workouts') // Make sure 'workouts' is your table name
-            .select('*')
-            .eq('user_id', userId);
-
-        if (error) {
-            toast.error('Could not fetch workouts.');
-            console.error(error);
-        } else if (data) {
-            setWorkouts(data as Workout[]);
-            
-            // Calculate stats (you would adjust this)
-            const total = data.length;
-            // const totalDist = data.reduce((acc, w) => acc + (w.distance || 0), 0);
-            // const totalCal = data.reduce((acc, w) => acc + (w.calories || 0), 0);
-            // setStats({ totalWorkouts: total, distance: totalDist, calories: totalCal });
-            
-            setStats({ totalWorkouts: total, distance: 0, calories: 0 }); // Mock stats
-        }
-        */
-        
-        toast.success(`Welcome back, ${displayName}!`);
+        // Show a welcome toast
+        toast.success(`Welcome back, ${name}!`);
     };
 
     
@@ -94,18 +64,15 @@ export default function Dashboard() {
                     {workouts.map(workout => (
                         <div key={workout.id} className="border-b last:border-b-0 py-2">
                             <p className="text-gray-800">Workout on {new Date(workout.created_at).toLocaleDateString()}</p>
-                            {/* Render other workout details here */}
                         </div>
                     ))}
                  </div>
             )}
-
             <Toaster />
         </div>
     );
 }
 
-// Simple Card Component for stats
 const StatCard = ({ title, value, unit }: { title: string, value: number, unit: string }) => (
     <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-purple-500 transition hover:shadow-xl">
         <p className="text-lg text-gray-500 font-medium">{title}</p>

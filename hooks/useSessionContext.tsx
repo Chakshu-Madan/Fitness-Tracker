@@ -2,9 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Session, User, AuthChangeEvent, Subscription } from '@supabase/supabase-js';
-
-// FIX: Corrected relative path. 'hooks' and 'lib' are sibling folders.
-import { supabase } from '../lib/supabase'; 
+import { supabase } from '@/lib/supabase'; // FIX: Use absolute path
 
 interface SessionContextValue {
     session: Session | null;
@@ -39,10 +37,9 @@ export function SessionContextProvider({ children }: { children: React.ReactNode
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (event: AuthChangeEvent, currentSession: Session | null) => {
                 setSession(currentSession);
-                // Note: We set loading to false *immediately* on the first fetch,
+                // We set loading to false *immediately* on the first fetch,
                 // this listener just handles subsequent updates.
-                // If the user logs in/out, we might be briefly out of sync,
-                // but loading is already false.
+                setLoading(false);
             }
         );
 
