@@ -1,7 +1,7 @@
-import '@/globals.css'; // FIX: Use absolute path
+import './globals.css'; // FIX: It's in the same folder now
 import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
-import { SessionContextProvider } from '@/hooks/useSessionContext'; // FIX: Use absolute path
+import { SessionContextProvider } from '../hooks/useSessionContext'; // FIX: Up one level
 
 const inter = Inter({ subsets: ['latin'] });
 
